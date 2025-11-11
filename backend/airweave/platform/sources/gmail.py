@@ -597,18 +597,21 @@ class GmailSource(BaseSource):
         # Email content is only in the local file for conversion
         try:
             if body_html:
+                safe_filename = self._sanitize_filename(message_entity.name, ".html")
                 await self.file_downloader.save_bytes(
                     entity=message_entity,
                     content=body_html.encode("utf-8"),
-                    filename_with_extension=message_entity.name + ".html",  # Has .html extension
+                    filename_with_extension=safe_filename,
                     logger=self.logger,
                 )
+
             elif body_plain:
                 # Save plain-text emails as .txt files for conversion
+                safe_filename = self._sanitize_filename(message_entity.name, ".txt")
                 await self.file_downloader.save_bytes(
                     entity=message_entity,
                     content=body_plain.encode("utf-8"),
-                    filename_with_extension=message_entity.name + ".txt",  # Plain text
+                    filename_with_extension=safe_filename,
                     logger=self.logger,
                 )
                 # Update file metadata to match plain text
@@ -839,6 +842,22 @@ class GmailSource(BaseSource):
         # Replace potentially problematic characters
         safe_name = "".join(c for c in filename if c.isalnum() or c in "._- ")
         return safe_name.strip()
+
+    def _sanitize_filename(self, name: str, default_ext: str = ".html") -> str:
+        """Ensure a safe filename with a valid extension."""
+        import re
+
+        name = name.strip()
+
+        # Replace any forbidden or confusing characters
+        name = re.sub(r"[\\/]+", "_", name)  # Replace / and \ with _
+        name = re.sub(r"\s+", " ", name)  # Collapse spaces
+        name = name.rstrip(". ")  # Remove trailing dots/spaces
+
+        # Ensure it ends with an extension
+        if not name.lower().endswith(default_ext):
+            name += default_ext
+        return name
 
     # -----------------------
     # Incremental sync
