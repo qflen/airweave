@@ -63,11 +63,10 @@ class BaseRateLimiter:
         """
 
         # Skip if feature disabled
-
-        async def acquire(self):
-            if not is_source_rate_limiting_enabled():
-                logger.debug(f"{self.__class__.__name__}: source rate limiting disabled")
-                return
+        if not is_source_rate_limiting_enabled():
+            logger.debug(f"{self.__class__.__name__}: source rate limiting disabled")
+            return
+        
         start_time = time.time()
 
         while True:
