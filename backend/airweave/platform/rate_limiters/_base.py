@@ -8,7 +8,9 @@ from airweave.core.config import settings
 from airweave.core.logging import logger
 
 def is_source_rate_limiting_enabled() -> bool:
-    return settings.SOURCE_RATE_LIMITING
+    # Use getattr to avoid AttributeError in environments where the Pydantic Settings
+    # class does not define SOURCE_RATE_LIMITING, default to False
+    return bool(getattr(settings, "SOURCE_RATE_LIMITING", False))
 
 class BaseRateLimiter:
     """Base class for per-pod singleton rate limiters.
