@@ -242,7 +242,7 @@ class GmailSource(BaseSource):
     # HTTP helpers
     # -----------------------
     @retry(
-        stop=stop_after_attempt(5),
+        stop=stop_after_attempt(6),
         retry=_should_retry_gmail_request,
         wait=wait_rate_limit_with_backoff,
         reraise=True,

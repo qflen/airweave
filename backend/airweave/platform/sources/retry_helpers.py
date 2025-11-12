@@ -29,16 +29,22 @@ def should_retry_on_rate_limit(exception: BaseException) -> bool:
     return False
 
 
-def should_retry_on_timeout(exception: BaseException) -> bool:
-    """Check if exception is a timeout that should be retried.
+def should_retry_on_rate_limit(exception: BaseException) -> bool:
+    """Check if exception is a retryable rate limit (429 or Gmail 403 rate-limit reasons).
 
-    Args:
-        exception: Exception to check
-
-    Returns:
-        True if this is a timeout exception
+    Handles both:
+    - Real API 429 responses
+    - Gmail 403 with rate-limit reasons
+    - Airweave internal rate limits (AirweaveHttpClient → 429)
     """
-    return isinstance(exception, (httpx.ConnectTimeout, httpx.ReadTimeout))
+    if isinstance(exception, httpx.HTTPStatusError):
+        status = exception.response.status_code
+        if status == 429:
+            return True
+        if status == 403 and _is_gmail_rate_limit_403(exception.response):
+            return True
+    return False
+
 
 
 def should_retry_on_rate_limit_or_timeout(exception: BaseException) -> bool:
@@ -57,6 +63,17 @@ def should_retry_on_rate_limit_or_timeout(exception: BaseException) -> bool:
             ...
     """
     return should_retry_on_rate_limit(exception) or should_retry_on_timeout(exception)
+
+
+def _is_gmail_rate_limit_403(resp: httpx.Response) -> bool:
+    """Detect Gmail 403 responses that are actually rate limits."""
+    try:
+        payload = resp.json()
+    except Exception:
+        return False
+    err = payload.get("error") or {}
+    reasons = {e.get("reason", "") for e in err.get("errors", []) if isinstance(e, dict)}
+    return any(r in {"rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded"} for r in reasons)
 
 
 def wait_rate_limit_with_backoff(retry_state) -> float:
