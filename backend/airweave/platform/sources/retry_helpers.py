@@ -12,24 +12,6 @@ from email.utils import parsedate_to_datetime
 
 
 def should_retry_on_rate_limit(exception: BaseException) -> bool:
-    """Check if exception is a retryable rate limit (429).
-
-    Handles both:
-    - Real API 429 responses
-    - Airweave internal rate limits (AirweaveHttpClient → 429)
-
-    Args:
-        exception: Exception to check
-
-    Returns:
-        True if this is a 429 that should be retried
-    """
-    if isinstance(exception, httpx.HTTPStatusError):
-        return exception.response.status_code == 429
-    return False
-
-
-def should_retry_on_rate_limit(exception: BaseException) -> bool:
     """Check if exception is a retryable rate limit (429 or Gmail 403 rate-limit reasons).
 
     Handles both:
@@ -45,6 +27,18 @@ def should_retry_on_rate_limit(exception: BaseException) -> bool:
             return True
     return False
 
+
+
+def should_retry_on_timeout(exception: BaseException) -> bool:
+    """Check if exception is a timeout that should be retried.
+
+    Args:
+        exception: Exception to check
+
+    Returns:
+        True if this is a timeout exception
+    """
+    return isinstance(exception, (httpx.ConnectTimeout, httpx.ReadTimeout))
 
 
 def should_retry_on_rate_limit_or_timeout(exception: BaseException) -> bool:
