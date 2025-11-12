@@ -400,10 +400,12 @@ async def create_sync_job_activity(
                     f"Sync {sync_id} already has {len(running_jobs)} running jobs. "
                     f"Skipping new job creation."
                 )
-                raise Exception(
-                    f"Sync {sync_id} already has a running job. "
-                    f"Skipping this scheduled run to avoid conflicts."
-                )
+                return {
+                    "status": "skipped",
+                    "reason": "already_running",
+                    "running_jobs_count": len(running_jobs),
+                }
+
 
         # Create the new sync job
         sync_job_in = schemas.SyncJobCreate(sync_id=UUID(sync_id))

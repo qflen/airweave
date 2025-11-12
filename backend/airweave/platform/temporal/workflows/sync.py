@@ -43,9 +43,19 @@ class RunSourceConnectionWorkflow:
                     ),
                 )
             except Exception as e:
-                # If we can't create a sync job (e.g., one is already running), skip this run
-                workflow.logger.warning(f"Skipping scheduled run for sync {sync_id}: {str(e)}")
-                return None  # Signal to exit gracefully
+                # Backward-compatibility for older behavior
+                if "already has a running job" in str(e):
+                    workflow.logger.warning(f"Skipping scheduled run for sync {sync_id}: {e}")
+                    return None
+
+                if isinstance(e, dict) and e.get("status") == "skipped":
+                    workflow.logger.info(f"Sync {sync_id} already running, skipping new job.")
+                    return None
+
+                # Unknown error – still log and re-raise
+                workflow.logger.error(f"Unexpected error creating sync job: {e}")
+                raise
+
         return sync_job_dict
 
     @workflow.run
