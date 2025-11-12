@@ -16,6 +16,7 @@ import httpx
 from tenacity import retry, stop_after_attempt
 
 from airweave.core.logging import logger
+from airweave.platform.utils.filename_utils import safe_filename
 from airweave.core.shared_models import RateLimitLevel
 from airweave.platform.cursors import GmailCursor
 from airweave.platform.decorators import source
@@ -597,7 +598,9 @@ class GmailSource(BaseSource):
         # Email content is only in the local file for conversion
         try:
             if body_html:
-                safe_filename = self._sanitize_filename(message_entity.name, ".html")
+                filename = safe_filename(message_entity.name, ".html")
+
+
                 await self.file_downloader.save_bytes(
                     entity=message_entity,
                     content=body_html.encode("utf-8"),
@@ -607,7 +610,9 @@ class GmailSource(BaseSource):
 
             elif body_plain:
                 # Save plain-text emails as .txt files for conversion
-                safe_filename = self._sanitize_filename(message_entity.name, ".txt")
+                filename = safe_filename(message_entity.name, ".txt")
+
+
                 await self.file_downloader.save_bytes(
                     entity=message_entity,
                     content=body_plain.encode("utf-8"),
@@ -836,28 +841,6 @@ class GmailSource(BaseSource):
         ):
             if ent is not None:
                 yield ent
-
-    def _safe_filename(self, filename: str) -> str:
-        """Create a safe version of a filename."""
-        # Replace potentially problematic characters
-        safe_name = "".join(c for c in filename if c.isalnum() or c in "._- ")
-        return safe_name.strip()
-
-    def _sanitize_filename(self, name: str, default_ext: str = ".html") -> str:
-        """Ensure a safe filename with a valid extension."""
-        import re
-
-        name = name.strip()
-
-        # Replace any forbidden or confusing characters
-        name = re.sub(r"[\\/]+", "_", name)  # Replace / and \ with _
-        name = re.sub(r"\s+", " ", name)  # Collapse spaces
-        name = name.rstrip(". ")  # Remove trailing dots/spaces
-
-        # Ensure it ends with an extension
-        if not name.lower().endswith(default_ext):
-            name += default_ext
-        return name
 
     # -----------------------
     # Incremental sync
