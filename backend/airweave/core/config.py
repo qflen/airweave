@@ -74,6 +74,7 @@ class Settings(BaseSettings):
 
     # Rate limiting
     DISABLE_RATE_LIMIT: bool = False  # For testing purposes - disables rate limiting completely
+    SOURCE_RATE_LIMITING: bool = False  # Feature flag for source-level rate limiting
     FIRST_SUPERUSER: str
     FIRST_SUPERUSER_PASSWORD: str
 
