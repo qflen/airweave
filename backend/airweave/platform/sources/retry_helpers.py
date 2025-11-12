@@ -6,6 +6,9 @@ and Airweave's internal rate limiting (via AirweaveHttpClient).
 
 import httpx
 from tenacity import retry_if_exception, wait_exponential
+import random
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 
 def should_retry_on_rate_limit(exception: BaseException) -> bool:
@@ -74,6 +77,10 @@ def wait_rate_limit_with_backoff(retry_state) -> float:
     """
     exception = retry_state.outcome.exception()
 
+    attempt = getattr(retry_state, "attempt_number", 1) or 1
+    exp_429 = min(30.0, 2.0 ** (attempt - 1))  # for 429 fallback path
+    exp_to = min(10.0, 2.0 ** (attempt - 1))   # for timeout path
+
     # For 429 rate limits, check Retry-After header
     if isinstance(exception, httpx.HTTPStatusError) and exception.response.status_code == 429:
         retry_after = exception.response.headers.get("Retry-After")
@@ -88,19 +95,31 @@ def wait_rate_limit_with_backoff(retry_state) -> float:
                 # This ensures we always wait long enough for the sliding window to clear.
                 wait_seconds = max(wait_seconds, 1.0)
 
-                # Cap at 120 seconds to avoid indefinite waits
-                return min(wait_seconds, 120.0)
+                # If header was actually a date, the float() branch above would fail; handled below.
             except (ValueError, TypeError):
-                pass
+                try:
+                    dt = parsedate_to_datetime(retry_after)
+                    # Convert to seconds from now (UTC-safe)
+                    wait_seconds = max((dt - datetime.now(timezone.utc)).total_seconds(), 0.0)
+                    wait_seconds = max(wait_seconds, 1.0)  # same minimum
+                except Exception:
+                    # fall through to exponential
+                    wait_seconds = 0.0
+
+            if wait_seconds and wait_seconds > 0.0:
+                # Cap at 120 seconds to avoid indefinite waits
+                wait = min(wait_seconds, 120.0)
+                return wait + random.uniform(0.0, 0.1 * wait)
 
         # No Retry-After header or invalid - use exponential backoff
         # This shouldn't happen with AirweaveHttpClient (always sets header)
         # but might happen with real API 429s that don't include header
-        return wait_exponential(multiplier=1, min=2, max=30)(retry_state)
+        base = exp_429 if exp_429 else wait_exponential(multiplier=1, min=2, max=30)(retry_state)
+        return base + random.uniform(0.0, 0.1 * base)
 
     # For timeouts and other retryable errors, use exponential backoff
-    return wait_exponential(multiplier=1, min=2, max=10)(retry_state)
-
+    base = exp_to if exp_to else wait_exponential(multiplier=1, min=2, max=10)(retry_state)
+    return base + random.uniform(0.0, 0.1 * base)
 
 # For sources that need simpler fixed-wait retry strategy
 retry_if_rate_limit = retry_if_exception(should_retry_on_rate_limit)

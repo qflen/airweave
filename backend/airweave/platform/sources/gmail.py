@@ -271,12 +271,13 @@ class GmailSource(BaseSource):
             headers = {"Authorization": f"Bearer {access_token}"}
             response = await client.get(url, headers=headers, params=params)
 
-        # Handle 429 rate limiting errors by respecting Retry-After header
+        # Handle 429: log and raise so Tenacity applies Retry-After backoff
         if response.status_code == 429:
             self.logger.warning(
                 f"Got 429 Rate Limited from Gmail API. Headers: {response.headers}. "
                 f"Body: {response.text}."
             )
+            response.raise_for_status()
 
         response.raise_for_status()
         data = response.json()
