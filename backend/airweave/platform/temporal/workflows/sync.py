@@ -42,6 +42,12 @@ class RunSourceConnectionWorkflow:
                         maximum_attempts=1,  # NO RETRIES - fail fast
                     ),
                 )
+
+                if isinstance(sync_job_dict, dict) and sync_job_dict.get("status") == "skipped":
+                    workflow.logger.info(f"Sync {sync_id} already running; skipping new job creation.")
+                    return None
+
+                
             except Exception as e:
                 # Backward-compatibility for older behavior
                 if "already has a running job" in str(e):
