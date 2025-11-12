@@ -3,13 +3,12 @@
 import asyncio
 import time
 from typing import Optional
-import os
+from airweave.core.config import settings
 
 from airweave.core.logging import logger
 
 def is_source_rate_limiting_enabled() -> bool:
-    """Return True if source rate limiting feature flag is enabled."""
-    return os.getenv("SOURCE_RATE_LIMITING", "false").lower() in ("1", "true", "yes")
+    return settings.SOURCE_RATE_LIMITING
 
 class BaseRateLimiter:
     """Base class for per-pod singleton rate limiters.
