@@ -239,6 +239,20 @@ async def list_all_organizations(
     # Fetch current usage for all organizations using CRUD layer
     usage_map = await crud.usage.get_current_usage_for_orgs(db, organization_ids=org_ids)
 
+    # Fetch source connection counts in one query (dynamically counted, not stored in usage)
+    from airweave.models.source_connection import SourceConnection
+
+    source_connection_count_query = (
+        select(
+            SourceConnection.organization_id,
+            func.count(SourceConnection.id).label("count"),
+        )
+        .where(SourceConnection.organization_id.in_(org_ids))
+        .group_by(SourceConnection.organization_id)
+    )
+    source_connection_result = await db.execute(source_connection_count_query)
+    source_connection_map = {row.organization_id: row.count for row in source_connection_result}
+
     # Build response with all metrics
     org_metrics = []
     for org in orgs:
@@ -262,7 +276,7 @@ async def list_all_organizations(
                 stripe_customer_id=billing.stripe_customer_id if billing else None,
                 trial_ends_at=billing.trial_ends_at if billing else None,
                 user_count=user_count_map.get(org.id, 0),
-                source_connection_count=usage_record.source_connections if usage_record else 0,
+                source_connection_count=source_connection_map.get(org.id, 0),
                 entity_count=usage_record.entities if usage_record else 0,
                 query_count=usage_record.queries if usage_record else 0,
                 last_active_at=last_active_map.get(org.id),

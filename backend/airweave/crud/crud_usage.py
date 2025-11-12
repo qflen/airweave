@@ -155,8 +155,7 @@ class CRUDUsage(CRUDBaseOrganization[Usage, UsageCreate, UsageUpdate]):
         logger.info(
             f"[increment_usage] Found usage record {usage_id}, "
             f"current values: entities={current_usage.entities}, "
-            f"queries={current_usage.queries}, "
-            f"source_connections={current_usage.source_connections}"
+            f"queries={current_usage.queries}"
         )
 
         # Build the atomic UPDATE query
@@ -205,28 +204,28 @@ class CRUDUsage(CRUDBaseOrganization[Usage, UsageCreate, UsageUpdate]):
                     "modified_at": updated_row.modified_at,
                 }
 
-                # Create SQLAlchemy model first (without team_members)
+                # Create SQLAlchemy model first (without team_members or source_connections)
                 updated_model = Usage(
                     id=updated_values["id"],
                     organization_id=updated_values["organization_id"],
                     entities=updated_values["entities"],
                     queries=updated_values["queries"],
-                    source_connections=updated_values["source_connections"],
                     billing_period_id=updated_values["billing_period_id"],
                     created_at=updated_values["created_at"],
                     modified_at=updated_values["modified_at"],
                 )
 
-                # Convert to Pydantic schema and add team_members
+                # Convert to Pydantic schema and add computed fields
                 from airweave.schemas.usage import Usage as UsageSchema
 
                 updated = UsageSchema.model_validate(updated_model)
-                updated.team_members = None  # Not stored in database, populated separately
+                # Computed fields not stored in DB, populated separately by guard_rail
+                updated.team_members = None
+                updated.source_connections = None
 
                 logger.info(
                     f"[increment_usage] Updated values: "
-                    f"entities={updated.entities}, queries={updated.queries}, "
-                    f"source_connections={updated.source_connections}"
+                    f"entities={updated.entities}, queries={updated.queries}"
                 )
                 return updated
             else:

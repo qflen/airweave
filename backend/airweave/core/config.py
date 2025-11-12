@@ -171,7 +171,7 @@ class Settings(BaseSettings):
     ANALYTICS_ENABLED: bool = True
 
     # Sync configuration
-    SYNC_MAX_WORKERS: int = 100
+    SYNC_MAX_WORKERS: int = 20
     SYNC_THREAD_POOL_SIZE: int = 100
     WEB_FETCHER_MAX_CONCURRENT: int = 10  # Max concurrent web scraping requests
     OPENAI_MAX_CONCURRENT: int = 20  # Max concurrent OpenAI API requests

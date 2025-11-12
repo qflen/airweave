@@ -19,6 +19,7 @@ from tenacity import (
 )
 
 from airweave import crud, models
+from airweave.core.shared_models import ActionType
 from airweave.db.session import get_db_context
 from airweave.platform.entities._base import BaseEntity, CodeFileEntity, FileEntity
 from airweave.platform.sync.context import SyncContext
@@ -192,11 +193,22 @@ class EntityPipeline:
 
         chunk_entities = await self._chunk_entities(entities_to_process, sync_context)
 
+        # Release large textual bodies on parent entities once chunks are created
+        for entity in entities_to_process:
+            entity.textual_representation = None
+
         # Embed chunk entities (sets vectors field)
         await self._embed_entities(chunk_entities, sync_context)
 
         # Persist to destinations (COMMIT POINT)
         await self._persist_to_destinations(chunk_entities, partitions, sync_context)
+
+        # Drop chunk payloads/vectors ASAP to minimise concurrent memory footprint
+        for chunk in chunk_entities:
+            chunk.textual_representation = None
+            if chunk.airweave_system_metadata:
+                chunk.airweave_system_metadata.vectors = None
+        chunk_entities.clear()
 
         # Persist to database (only after destination success)
         await self._persist_to_database(partitions, sync_context)
@@ -1458,6 +1470,16 @@ class EntityPipeline:
 
         # Execute with deadlock retry
         await _with_deadlock_retry(_execute_db_operations)
+
+        # Increment guard rail usage for synced entities (inserts + updates)
+        # Both count as "entities synced" since they represent work done
+        total_synced = len(inserts) + len(updates)
+        if total_synced > 0:
+            await sync_context.guard_rail.increment(ActionType.ENTITIES, amount=total_synced)
+            sync_context.logger.debug(
+                f"Incremented guard_rail ENTITIES usage by {total_synced} "
+                f"({len(inserts)} inserts + {len(updates)} updates)"
+            )
 
         # Update entity state tracker for real-time UI updates via pubsub
         if hasattr(sync_context, "entity_state_tracker") and sync_context.entity_state_tracker:
