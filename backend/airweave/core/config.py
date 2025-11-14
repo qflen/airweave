@@ -101,9 +101,11 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     POSTGRES_HOST: str
+    POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "airweave"
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
+    POSTGRES_SSLMODE: str = "prefer"  # disable for PgBouncer, require for Azure PostgreSQL
     SQLALCHEMY_ASYNC_DATABASE_URI: Optional[PostgresDsn] = None
 
     LOCAL_NGROK_SERVER: Optional[str] = None
@@ -329,12 +331,14 @@ class Settings(BaseSettings):
         # Connect to local PostgreSQL server during local development
         # This allows developers to debug without Docker
         host = info.data.get("POSTGRES_HOST", "localhost")
+        port = info.data.get("POSTGRES_PORT", 5432)
 
         return PostgresDsn.build(
             scheme="postgresql+asyncpg",
             username=info.data.get("POSTGRES_USER"),
             password=info.data.get("POSTGRES_PASSWORD"),
             host=host,
+            port=port,
             path=f"{info.data.get('POSTGRES_DB') or ''}",
         )
 

@@ -177,7 +177,7 @@ class CRUDUsage(CRUDBaseOrganization[Usage, UsageCreate, UsageUpdate]):
                     modified_at = NOW()
                 WHERE id = :usage_id
                 RETURNING id, organization_id, entities, queries,
-                        source_connections, billing_period_id, created_at, modified_at
+                        billing_period_id, created_at, modified_at
             """
             )
 
@@ -198,7 +198,6 @@ class CRUDUsage(CRUDBaseOrganization[Usage, UsageCreate, UsageUpdate]):
                     "organization_id": updated_row.organization_id,
                     "entities": updated_row.entities,
                     "queries": updated_row.queries,
-                    "source_connections": updated_row.source_connections,
                     "billing_period_id": updated_row.billing_period_id,
                     "created_at": updated_row.created_at,
                     "modified_at": updated_row.modified_at,
