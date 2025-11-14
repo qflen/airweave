@@ -605,7 +605,7 @@ class GmailSource(BaseSource):
                 await self.file_downloader.save_bytes(
                     entity=message_entity,
                     content=body_html.encode("utf-8"),
-                    filename_with_extension=safe_filename,
+                    filename_with_extension=filename,
                     logger=self.logger,
                 )
 
@@ -617,7 +617,7 @@ class GmailSource(BaseSource):
                 await self.file_downloader.save_bytes(
                     entity=message_entity,
                     content=body_plain.encode("utf-8"),
-                    filename_with_extension=safe_filename,
+                    filename_with_extension=filename,
                     logger=self.logger,
                 )
                 # Update file metadata to match plain text
